@@ -25,7 +25,7 @@ mongoose.connect(
 
 const formSchema = new mongoose.Schema({
     id: Number,
-    form_title: String,
+    form_title: String, 
     components: [{
         id: Number,
         element: String,
@@ -160,8 +160,8 @@ const formSchema = new mongoose.Schema({
 
         show: Boolean
     }],
-    date_created: Date,
-    date_modified: Date,
+    date_created: String,
+    date_modified: String,
     status: String
 })
 
@@ -218,6 +218,24 @@ app.get('/api/form/show/:id', async (req: Request, res: Response, next: NextFunc
   })
 })
 
+app.get('/api/form/getFormName/:formName', async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Get Function");
+  const {formName} = req.params;
+
+  Form.findOne({
+    form_title: formName
+},function (err: any, val: any) {
+  if (err) {
+    res.send("Error");
+  }
+  if (!val) {
+    res.send("Data does not exist");
+  } else {
+    res.send(val);
+  }
+  })
+})
+
 app.get('/api/form/showAll/', async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside Get Function");
   
@@ -234,6 +252,8 @@ app.get('/api/form/showAll/', async (req: Request, res: Response, next: NextFunc
   }
   })
 })
+
+
 
 app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFunction) => {
   const {id} = req.params
@@ -254,7 +274,7 @@ app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFun
               id: id
           },
           {
-              $set: { form_title,components, date_created, date_modified,status} 
+              $set: { id,form_title,components, date_created, date_modified,status} 
           },
           {
               new: true

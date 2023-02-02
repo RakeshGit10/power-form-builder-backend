@@ -146,8 +146,8 @@ const formSchema = new mongoose_1.default.Schema({
                 }],
             show: Boolean
         }],
-    date_created: Date,
-    date_modified: Date,
+    date_created: String,
+    date_modified: String,
     status: String
 });
 const Form = mongoose_1.default.model('Form', formSchema);
@@ -174,6 +174,23 @@ app.get('/api/form/show/:id', (req, res, next) => __awaiter(void 0, void 0, void
     const { id } = req.params;
     Form.findOne({
         id: id
+    }, function (err, val) {
+        if (err) {
+            res.send("Error");
+        }
+        if (!val) {
+            res.send("Data does not exist");
+        }
+        else {
+            res.send(val);
+        }
+    });
+}));
+app.get('/api/form/getFormName/:formName', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Inside Get Function");
+    const { formName } = req.params;
+    Form.findOne({
+        form_title: formName
     }, function (err, val) {
         if (err) {
             res.send("Error");
@@ -214,7 +231,7 @@ app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, vo
         const updatedForm = yield Form.findOneAndUpdate({
             id: id
         }, {
-            $set: { form_title, components, date_created, date_modified, status }
+            $set: { id, form_title, components, date_created, date_modified, status }
         }, {
             new: true
         });
