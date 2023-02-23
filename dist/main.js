@@ -30,9 +30,18 @@ mongoose_1.default.connect("mongodb://localhost:27017/formbuilder1", {
         console.log("Error connecting to db");
     }
 });
+//
+const userSchema = new mongoose_1.default.Schema({
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    firstname: { type: String, required: true },
+    lastname: { type: String, required: true },
+});
+const User = mongoose_1.default.model("User", userSchema);
 const formSchema = new mongoose_1.default.Schema({
     id: Number,
     form_title: String,
+    owner: String,
     components: [{
             id: Number,
             element: String,
@@ -157,14 +166,14 @@ app.use((0, body_parser_1.urlencoded)({
 app.use((0, body_parser_1.json)());
 app.post('/api/form/', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("Inside post");
-    const { id, form_title, components, date_created, date_modified, status } = req.body;
-    if (!id || !form_title || !components || !date_created || !date_modified || !status) {
+    const { id, form_title, owner, components, date_created, date_modified, status } = req.body;
+    if (!id || !form_title || !owner || !components || !date_created || !date_modified || !status) {
         const error = new Error('Data is Required');
         error.status = 400;
         return next(error);
     }
     const newForm = new Form({
-        id, form_title, components, date_created, date_modified, status
+        id, form_title, owner, components, date_created, date_modified, status
     });
     yield newForm.save();
     res.status(201).send(newForm);
@@ -189,9 +198,24 @@ app.get('/api/form/show/:id', (req, res, next) => __awaiter(void 0, void 0, void
 app.get('/api/form/getFormName/:formName', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("Inside Get Function");
     const { formName } = req.params;
-    Form.findOne({
+    Form.find({
         form_title: formName
     }, function (err, val) {
+        if (err) {
+            res.send("Error");
+        }
+        if (!val) {
+            res.send("Data does not exist");
+        }
+        else {
+            res.send(val);
+        }
+    });
+}));
+app.get('/api/form/getFormByOwner/:formOwner', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Inside Get Function");
+    const { formOwner } = req.params;
+    Form.find({ owner: formOwner }, function (err, val) {
         if (err) {
             res.send("Error");
         }
@@ -220,7 +244,7 @@ app.get('/api/form/showAll/', (req, res, next) => __awaiter(void 0, void 0, void
 app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     console.log(req.body);
-    const { form_title, components, date_created, date_modified, status } = req.body;
+    const { form_title, owner, components, date_created, date_modified, status } = req.body;
     if (!id) {
         const error = new Error('Data is Required');
         error.status = 400;
@@ -231,7 +255,7 @@ app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, vo
         const updatedForm = yield Form.findOneAndUpdate({
             id: id
         }, {
-            $set: { id, form_title, components, date_created, date_modified, status }
+            $set: { id, form_title, owner, components, date_created, date_modified, status }
         }, {
             new: true
         });
@@ -258,14 +282,6 @@ app.delete('/api/form/delete/:id', (req, res, next) => __awaiter(void 0, void 0,
     }
     res.status(200).json({ success: true });
 }));
-//
-const userSchema = new mongoose_1.default.Schema({
-    email: { type: String, required: true },
-    password: { type: String, required: true },
-    firstname: { type: String, required: true },
-    lastname: { type: String, required: true },
-});
-const User = mongoose_1.default.model("User", userSchema);
 app.post("/api/signup", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { email, password, firstname, lastname } = req.body;

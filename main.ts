@@ -23,9 +23,20 @@ mongoose.connect(
   }
 );
 
+//
+const userSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique:true },
+  password: { type: String, required: true },
+  firstname: { type: String, required: true },
+  lastname: { type: String, required: true },
+});
+
+const User = mongoose.model("User", userSchema);
+
 const formSchema = new mongoose.Schema({
     id: Number,
     form_title: String, 
+    owner:  String, 
     components: [{
         id: Number,
         element: String,
@@ -181,16 +192,16 @@ declare global {
 
 app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside post")
-  const {id,form_title, components, date_created, date_modified,status} = req.body
+  const {id,form_title, owner, components, date_created, date_modified,status} = req.body
 
-  if(!id || !form_title || !components || !date_created || !date_modified || !status){
+  if(!id || !form_title || !owner || !components || !date_created || !date_modified || !status){
       const error = new Error('Data is Required') as CustomError
       error.status = 400;
       return next(error)
   }
 
   const newForm = new Form({
-      id,form_title, components, date_created, date_modified,status  
+      id,form_title, owner, components, date_created, date_modified,status  
   })
 
   await newForm.save()
@@ -222,9 +233,25 @@ app.get('/api/form/getFormName/:formName', async (req: Request, res: Response, n
   console.log("Inside Get Function");
   const {formName} = req.params;
 
-  Form.findOne({
+  Form.find({
     form_title: formName
 },function (err: any, val: any) {
+  if (err) {
+    res.send("Error");
+  }
+  if (!val) {
+    res.send("Data does not exist");
+  } else {
+    res.send(val);
+  }
+  })
+})
+
+app.get('/api/form/getFormByOwner/:formOwner', async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Get Function");
+  const {formOwner} = req.params;
+
+  Form.find({ owner: formOwner},function (err: any, val: any) {
   if (err) {
     res.send("Error");
   }
@@ -258,7 +285,7 @@ app.get('/api/form/showAll/', async (req: Request, res: Response, next: NextFunc
 app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFunction) => {
   const {id} = req.params
   console.log(req.body)
-  const {form_title, components, date_created, date_modified,status} = req.body
+  const {form_title, owner,components, date_created, date_modified,status} = req.body
 
   if(!id ){
       const error = new Error('Data is Required') as CustomError
@@ -274,7 +301,7 @@ app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFun
               id: id
           },
           {
-              $set: { id,form_title,components, date_created, date_modified,status} 
+              $set: { id,form_title,owner,components, date_created, date_modified,status} 
           },
           {
               new: true
@@ -306,15 +333,7 @@ app.delete('/api/form/delete/:id', async (req: Request, res: Response, next: Nex
   res.status(200).json({success: true})
 })
 
-//
-const userSchema = new mongoose.Schema({
-  email: { type: String, required: true },
-  password: { type: String, required: true },
-  firstname: { type: String, required: true },
-  lastname: { type: String, required: true },
-});
 
-const User = mongoose.model("User", userSchema);
 
 app.post("/api/signup", async (req, res) => {
   try {
