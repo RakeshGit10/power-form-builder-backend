@@ -18,7 +18,7 @@ const mongoose_1 = __importDefault(require("mongoose"));
 const cors_1 = __importDefault(require("cors"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-mongoose_1.default.connect("mongodb://localhost:27017/formbuilder1", {
+mongoose_1.default.connect("mongodb://localhost:27017/formbuilder", {
     autoIndex: true,
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -76,6 +76,7 @@ const formSchema = new mongoose_1.default.Schema({
             ],
             tabItems: [{
                     id: String,
+                    dropId: String,
                     tabsDataLabel: String,
                     tabsDataValue: String,
                     tabComponents: [{

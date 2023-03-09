@@ -8,7 +8,7 @@ const app = express();
 app.use(cors());
 
 mongoose.connect(
-  "mongodb://localhost:27017/formbuilder1",
+  "mongodb://localhost:27017/formbuilder",
   {
     autoIndex: true,
     useNewUrlParser: true,
@@ -78,6 +78,7 @@ const formSchema = new mongoose.Schema({
 
         tabItems: [{
           id: String,
+          dropId: String,
           tabsDataLabel: String,
           tabsDataValue: String,
           tabComponents:  [{
