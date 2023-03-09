@@ -1,13 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -16,6 +7,7 @@ const express_1 = __importDefault(require("express"));
 const body_parser_1 = require("body-parser");
 const mongoose_1 = __importDefault(require("mongoose"));
 const cors_1 = __importDefault(require("cors"));
+const bcrypt_1 = __importDefault(require("bcrypt"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
 mongoose_1.default.connect("mongodb://localhost:27017/formbuilder", {
@@ -165,7 +157,12 @@ app.use((0, body_parser_1.urlencoded)({
     extended: true
 }));
 app.use((0, body_parser_1.json)());
-app.post('/api/form/', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+async function encryptPassword(password) {
+    const salt = await bcrypt_1.default.genSalt(10);
+    const hash = await bcrypt_1.default.hash(password, salt);
+    return hash;
+}
+app.post('/api/form/', async (req, res, next) => {
     console.log("Inside post");
     const { id, form_title, owner, components, date_created, date_modified, status } = req.body;
     if (!id || !form_title || !owner || !components || !date_created || !date_modified || !status) {
@@ -176,10 +173,10 @@ app.post('/api/form/', (req, res, next) => __awaiter(void 0, void 0, void 0, fun
     const newForm = new Form({
         id, form_title, owner, components, date_created, date_modified, status
     });
-    yield newForm.save();
+    await newForm.save();
     res.status(201).send(newForm);
-}));
-app.get('/api/form/show/:id', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.get('/api/form/show/:id', async (req, res, next) => {
     console.log("Inside Get Function");
     const { id } = req.params;
     Form.findOne({
@@ -195,8 +192,8 @@ app.get('/api/form/show/:id', (req, res, next) => __awaiter(void 0, void 0, void
             res.send(val);
         }
     });
-}));
-app.get('/api/form/getFormName/:formName', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.get('/api/form/getFormName/:formName', async (req, res, next) => {
     console.log("Inside Get Function");
     const { formName } = req.params;
     Form.find({
@@ -212,8 +209,8 @@ app.get('/api/form/getFormName/:formName', (req, res, next) => __awaiter(void 0,
             res.send(val);
         }
     });
-}));
-app.get('/api/form/getFormByOwner/:formOwner', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.get('/api/form/getFormByOwner/:formOwner', async (req, res, next) => {
     console.log("Inside Get Function");
     const { formOwner } = req.params;
     Form.find({ owner: formOwner }, function (err, val) {
@@ -227,8 +224,8 @@ app.get('/api/form/getFormByOwner/:formOwner', (req, res, next) => __awaiter(voi
             res.send(val);
         }
     });
-}));
-app.get('/api/form/showAll/', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.get('/api/form/showAll/', async (req, res, next) => {
     console.log("Inside Get Function");
     Form.find({}, function (err, val) {
         if (err) {
@@ -241,8 +238,8 @@ app.get('/api/form/showAll/', (req, res, next) => __awaiter(void 0, void 0, void
             res.send(val);
         }
     });
-}));
-app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.put('/api/form/update/:id', async (req, res, next) => {
     const { id } = req.params;
     console.log(req.body);
     const { form_title, owner, components, date_created, date_modified, status } = req.body;
@@ -253,7 +250,7 @@ app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, vo
     }
     let updatedForm;
     try {
-        const updatedForm = yield Form.findOneAndUpdate({
+        const updatedForm = await Form.findOneAndUpdate({
             id: id
         }, {
             $set: { id, form_title, owner, components, date_created, date_modified, status }
@@ -267,8 +264,8 @@ app.put('/api/form/update/:id', (req, res, next) => __awaiter(void 0, void 0, vo
         next(error);
     }
     res.status(200).send(updatedForm);
-}));
-app.delete('/api/form/delete/:id', (req, res, next) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.delete('/api/form/delete/:id', async (req, res, next) => {
     const { id } = req.params;
     if (!id) {
         const error = new Error('post id is required');
@@ -276,55 +273,69 @@ app.delete('/api/form/delete/:id', (req, res, next) => __awaiter(void 0, void 0,
         next(error);
     }
     try {
-        yield Form.findOneAndRemove({ id: id });
+        await Form.findOneAndRemove({ id: id });
     }
     catch (err) {
         next(new Error('Form cannot be updated'));
     }
     res.status(200).json({ success: true });
-}));
-app.post("/api/signup", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.post("/api/signup", async (req, res) => {
     try {
         const { email, password, firstname, lastname } = req.body;
-        const user = yield User.findOne({ email });
+        const user = await User.findOne({ email });
         if (user) {
             return res.status(400).json({ message: "Email already registered" });
         }
+        const hashedPassword = await encryptPassword(password);
+        console.log(hashedPassword);
         const newUser = new User({
             email,
-            password,
+            password: hashedPassword,
             firstname,
             lastname,
         });
-        yield newUser.save();
+        await newUser.save();
         return res.status(200).json({ message: "User created successfully" });
     }
     catch (error) {
         console.log(error);
         return res.status(500).json({ message: "Server Error" });
     }
-}));
-app.post('/api/signin', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+});
+app.post('/api/signin', async (req, res) => {
+    console.log("Login");
     const { email, password } = req.body;
     try {
         // Find the user with the given email
-        const user = yield User.findOne({ email });
+        const user = await User.findOne({ email });
         console.log(user);
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-        const isMatch = password === user.password;
-        if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid password' });
+        try {
+            const isValid = await bcrypt_1.default.compare(password, user.password);
+            console.log(isValid, "isValid");
+            if (!isValid) {
+                console.log("inside");
+                return res.status(400).json({ message: 'Invalid password' });
+            }
+            else {
+                const { _id, firstname, lastname, email: userEmail } = user;
+                return res.status(200).json({ _id, firstname, lastname, email: userEmail });
+            }
         }
-        const { _id, firstname, lastname, email: userEmail } = user;
-        return res.status(200).json({ _id, firstname, lastname, email: userEmail });
+        catch (error) {
+            console.log(error);
+            return false;
+        }
     }
     catch (error) {
         console.error(error);
         return res.status(500).json({ message: 'Server error' });
     }
-}));
+});
 app.listen(4000, () => {
     console.log("On port 4000");
 });
+//# sourceMappingURL=main.js.map

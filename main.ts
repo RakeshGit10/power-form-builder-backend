@@ -2,7 +2,7 @@ import express, {Request,Response, NextFunction} from "express";
 import {json, urlencoded} from "body-parser";
 import mongoose, { ConnectOptions } from "mongoose";
 import cors from "cors";
-
+import bcrypt from 'bcrypt'
 
 const app = express();
 app.use(cors());
@@ -191,6 +191,12 @@ declare global {
   }
 }
 
+async function encryptPassword(password: string): Promise<string>{
+  const salt = await bcrypt.genSalt(10);
+  const hash = await bcrypt.hash(password,salt);
+  return hash
+}
+
 app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside post")
   const {id,form_title, owner, components, date_created, date_modified,status} = req.body
@@ -346,9 +352,11 @@ app.post("/api/signup", async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
+    const hashedPassword = await encryptPassword(password)
+    console.log(hashedPassword)
     const newUser = new User({
       email,
-      password,
+      password: hashedPassword,
       firstname,
       lastname,
     });
@@ -363,7 +371,9 @@ app.post("/api/signup", async (req, res) => {
 });
 
 
+
 app.post('/api/signin', async (req, res) => {
+  console.log("Login")
   const { email, password } = req.body;
   
   try {
@@ -373,14 +383,22 @@ app.post('/api/signin', async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-  
-    const isMatch = password === user.password
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid password' });
-    }
 
-    const {_id, firstname, lastname, email: userEmail } = user;
-    return res.status(200).json({_id, firstname,lastname, email: userEmail });
+    try{
+        const isValid = await bcrypt.compare(password,user.password);
+        console.log(isValid,"isValid")
+        if (!isValid) {
+          console.log("inside")
+          return res.status(400).json({ message: 'Invalid password' });
+        }else{
+          const {_id, firstname, lastname, email: userEmail } = user;
+          return res.status(200).json({_id, firstname,lastname, email: userEmail });
+        }
+      }
+      catch(error){
+        console.log(error);
+        return false;
+      }    
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Server error' });
