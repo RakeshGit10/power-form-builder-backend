@@ -25,6 +25,7 @@ mongoose.connect(
 
 //
 const userSchema = new mongoose.Schema({
+  userId: {type: Number, required: true, unique: true},
   email: { type: String, required: true, unique:true },
   password: { type: String, required: true },
   firstname: { type: String, required: true },
@@ -198,7 +199,7 @@ async function encryptPassword(password: string): Promise<string>{
 }
 
 app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) => {
-  console.log("Inside post")
+  console.log("Inside Form Post")
   const {id,form_title, owner, components, date_created, date_modified,status} = req.body
 
   if(!id || !form_title || !owner || !components || !date_created || !date_modified || !status){
@@ -219,9 +220,9 @@ app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) =>
 
 
 app.get('/api/form/show/:id', async (req: Request, res: Response, next: NextFunction) => {
-  console.log("Inside Get Function");
+  console.log("Inside Get By Id Function");
   const {id} = req.params;
-
+  console.log(id)
   Form.findOne({
     id: id
 },function (err: any, val: any) {
@@ -236,8 +237,10 @@ app.get('/api/form/show/:id', async (req: Request, res: Response, next: NextFunc
   })
 })
 
+
+
 app.get('/api/form/getFormName/:formName', async (req: Request, res: Response, next: NextFunction) => {
-  console.log("Inside Get Function");
+  console.log("Inside Get FormName Function");
   const {formName} = req.params;
 
   Form.find({
@@ -255,7 +258,7 @@ app.get('/api/form/getFormName/:formName', async (req: Request, res: Response, n
 })
 
 app.get('/api/form/getFormByOwner/:formOwner', async (req: Request, res: Response, next: NextFunction) => {
-  console.log("Inside Get Function");
+  console.log("Inside Get Form by Owner Function");
   const {formOwner} = req.params;
 
   Form.find({ owner: formOwner},function (err: any, val: any) {
@@ -271,7 +274,7 @@ app.get('/api/form/getFormByOwner/:formOwner', async (req: Request, res: Respons
 })
 
 app.get('/api/form/showAll/', async (req: Request, res: Response, next: NextFunction) => {
-  console.log("Inside Get Function");
+  console.log("Inside Get All Forms Function");
   
   Form.find({
    
@@ -290,6 +293,7 @@ app.get('/api/form/showAll/', async (req: Request, res: Response, next: NextFunc
 
 
 app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Form Update Function")
   const {id} = req.params
   console.log(req.body)
   const {form_title, owner,components, date_created, date_modified,status} = req.body
@@ -323,6 +327,7 @@ app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFun
 })
 
 app.delete('/api/form/delete/:id', async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Form Delete Function");
   const {id} = req.params;
 
   if(!id){
@@ -343,8 +348,9 @@ app.delete('/api/form/delete/:id', async (req: Request, res: Response, next: Nex
 
 
 app.post("/api/signup", async (req, res) => {
+  console.log("Inside User Post Function")
   try {
-    const { email, password, firstname, lastname } = req.body;
+    const { userId,email, password, firstname, lastname } = req.body;
 
     const user = await User.findOne({ email });
 
@@ -355,6 +361,7 @@ app.post("/api/signup", async (req, res) => {
     const hashedPassword = await encryptPassword(password)
     console.log(hashedPassword)
     const newUser = new User({
+      userId,
       email,
       password: hashedPassword,
       firstname,
@@ -373,7 +380,7 @@ app.post("/api/signup", async (req, res) => {
 
 
 app.post('/api/signin', async (req, res) => {
-  console.log("Login")
+  console.log("User Login Function")
   const { email, password } = req.body;
   
   try {
@@ -391,8 +398,8 @@ app.post('/api/signin', async (req, res) => {
           console.log("inside")
           return res.status(400).json({ message: 'Invalid password' });
         }else{
-          const {_id, firstname, lastname, email: userEmail } = user;
-          return res.status(200).json({_id, firstname,lastname, email: userEmail });
+          const {_id, userId, firstname, lastname, email: userEmail } = user;
+          return res.status(200).json({_id, userId, firstname,lastname, email: userEmail });
         }
       }
       catch(error){
@@ -405,6 +412,63 @@ app.post('/api/signin', async (req, res) => {
   }
 });
 
+app.get('/api/user/getPassword/:user_id', async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Get Password Function");
+  const {user_id} = req.params;
+  console.log(user_id)
+  User.findOne({
+    userId: user_id
+},function (err: any, val: any) {
+  if (err) {
+    res.send("Error");
+  }
+  if (!val) {
+    res.send("Data does not exist");
+  } else {
+    res.send(val);
+  }
+  })
+})
+
+app.put('/api/user/update-profile/:user_Id',async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside User Update Profile")
+  const {user_Id} = req.params
+  console.log(req.body)
+  let {userId,firstname,lastname,email,password} = req.body
+
+  if(!user_Id){
+      const error = new Error('Data is Required') as CustomError
+      error.status = 400;
+      return next(error)
+  }
+
+  let updatedForm;
+  if(password){
+    const hashedPassword = await encryptPassword(password)
+    console.log("Changed Password",hashedPassword)
+    password = hashedPassword
+  }
+  
+  
+  try{
+      const updatedForm = await User.findOneAndUpdate(
+          {
+              userId: user_Id
+          },
+          {
+              $set: { userId,firstname,lastname,email,password} 
+          },
+          {
+              new: true
+          }
+      )
+  }catch(err){
+      const error = new Error('User profile cannot be updated') as CustomError
+      error.status = 400 
+      next(error)
+  }
+  res.status(200).send(updatedForm)
+})
 
 
 app.listen(4000, () => {
