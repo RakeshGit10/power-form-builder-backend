@@ -10,7 +10,7 @@ const cors_1 = __importDefault(require("cors"));
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-mongoose_1.default.connect("mongodb://localhost:27017/formbuilder", {
+mongoose_1.default.connect("mongodb://localhost:27017/newformbuilder", {
     autoIndex: true,
     useNewUrlParser: true,
     useUnifiedTopology: true,
@@ -31,124 +31,80 @@ const userSchema = new mongoose_1.default.Schema({
     lastname: { type: String, required: true },
 });
 const User = mongoose_1.default.model("User", userSchema);
+const menuItemSchema = new mongoose_1.default.Schema({
+    id: String,
+    selectDataLabel: String,
+    selectDataValue: String
+});
+const radioButtonSchema = new mongoose_1.default.Schema({
+    id: String,
+    radioButtonDataLabel: String,
+    radioButtonDataValue: String
+});
+const validateSchema = new mongoose_1.default.Schema({
+    required: Boolean,
+    minLength: { type: Number, required: false },
+    maxLength: { type: Number, required: false },
+    rows: { type: Number, required: false },
+    error: { type: String, required: false },
+});
+const elementSchema = new mongoose_1.default.Schema({
+    id: Number,
+    element: String,
+    label: String,
+    placeholder: String,
+    validate: validateSchema,
+    width: Number,
+    checked: Boolean,
+    default: Boolean,
+    multipleValues: Boolean,
+    menuItems: [menuItemSchema],
+    textFieldWidth: Number,
+    theme: String,
+    size: String,
+    options: String,
+    radioItems: [radioButtonSchema],
+    show: Boolean
+});
+const tabItemsSchema = new mongoose_1.default.Schema({
+    id: String,
+    dropId: String,
+    tabsDataLabel: String,
+    tabsDataValue: String,
+    tabComponents: [elementSchema]
+});
+const columnItemsSchema = new mongoose_1.default.Schema({
+    id: String,
+    label: String,
+    columnDataSize: String,
+    columnDataWidth: Number,
+    columnComponents: [elementSchema]
+});
+const componentSchema = new mongoose_1.default.Schema({
+    id: Number,
+    element: String,
+    label: String,
+    placeholder: String,
+    validate: validateSchema,
+    width: Number,
+    checked: Boolean,
+    default: Boolean,
+    multipleValues: Boolean,
+    menuItems: [menuItemSchema],
+    textFieldWidth: Number,
+    theme: String,
+    size: String,
+    options: String,
+    radioItems: [radioButtonSchema],
+    tabItems: [tabItemsSchema],
+    columnItems: [columnItemsSchema],
+    show: Boolean
+});
 const formSchema = new mongoose_1.default.Schema({
     id: Number,
     form_title: String,
     owner: String,
-    components: [{
-            id: Number,
-            element: String,
-            label: String,
-            placeholder: String,
-            required: Boolean,
-            minLength: Number,
-            maxLength: Number,
-            rows: Number,
-            minRows: Number,
-            width: Number,
-            checked: Boolean,
-            default: Boolean,
-            error: String,
-            multipleValues: Boolean,
-            menuItems: [
-                {
-                    id: String,
-                    selectDataLabel: String,
-                    selectDataValue: String,
-                },
-            ],
-            textFieldWidth: Number,
-            theme: String,
-            size: String,
-            options: String,
-            radioItems: [
-                {
-                    radioButtonDataLabel: String,
-                    radioButtonDataValue: String,
-                },
-            ],
-            tabItems: [{
-                    id: String,
-                    dropId: String,
-                    tabsDataLabel: String,
-                    tabsDataValue: String,
-                    tabComponents: [{
-                            id: Number,
-                            element: String,
-                            label: String,
-                            placeholder: String,
-                            required: Boolean,
-                            minLength: Number,
-                            maxLength: Number,
-                            rows: Number,
-                            minRows: Number,
-                            width: Number,
-                            checked: Boolean,
-                            default: Boolean,
-                            error: String,
-                            multipleValues: Boolean,
-                            menuItems: [
-                                {
-                                    id: String,
-                                    selectDataLabel: String,
-                                    selectDataValue: String,
-                                },
-                            ],
-                            textFieldWidth: Number,
-                            theme: String,
-                            size: String,
-                            options: String,
-                            radioItems: [
-                                {
-                                    radioButtonDataLabel: String,
-                                    radioButtonDataValue: String,
-                                },
-                            ],
-                            show: Boolean
-                        }]
-                }],
-            columnItems: [{
-                    id: String,
-                    label: String,
-                    columnDataSize: String,
-                    columnDataWidth: Number,
-                    columnComponents: [{
-                            id: Number,
-                            element: String,
-                            label: String,
-                            placeholder: String,
-                            required: Boolean,
-                            minLength: Number,
-                            maxLength: Number,
-                            rows: Number,
-                            minRows: Number,
-                            width: Number,
-                            checked: Boolean,
-                            default: Boolean,
-                            error: String,
-                            multipleValues: Boolean,
-                            menuItems: [
-                                {
-                                    id: String,
-                                    selectDataLabel: String,
-                                    selectDataValue: String,
-                                },
-                            ],
-                            textFieldWidth: Number,
-                            theme: String,
-                            size: String,
-                            options: String,
-                            radioItems: [
-                                {
-                                    radioButtonDataLabel: String,
-                                    radioButtonDataValue: String,
-                                },
-                            ],
-                            show: Boolean
-                        }]
-                }],
-            show: Boolean
-        }],
+    components: [componentSchema],
     date_created: String,
     date_modified: String,
     status: String
@@ -182,12 +138,17 @@ app.get('/api/form/show/:id', async (req, res, next) => {
     const { id } = req.params;
     console.log(id);
     Form.findOne({
-        id: id
+        id: id,
+        "components.menuItems": { $exists: true, $ne: [] },
+        // "components.radioItems": { $exists: true, $ne: [] },
+        // "components.tabItems": { $exists: true, $ne: [] },
+        // "components.columnItems": { $exists: true, $ne: [] },
     }, function (err, val) {
         if (err) {
             res.send("Error");
         }
         if (!val) {
+            console.log(val);
             res.send("Data does not exist");
         }
         else {
@@ -392,6 +353,6 @@ app.put('/api/user/update-profile/:user_Id', async (req, res, next) => {
     res.status(200).send(updatedForm);
 });
 app.listen(4000, () => {
-    console.log("On port 4000");
+    console.log("On port 4000c");
 });
 //# sourceMappingURL=main.js.map
