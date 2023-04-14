@@ -128,6 +128,17 @@ const formSchema = new mongoose.Schema({
 
 const Form =  mongoose.model('Form', formSchema);
 
+const formHistorySchema = new mongoose.Schema({
+  id: Number,
+  form_id: Number,
+  version: Number,
+  form_title: String, 
+  components: [componentSchema],
+  date_modified: String,
+})
+
+const FormHistory = mongoose.model('FormHistory', formHistorySchema)
+
 app.use(urlencoded({
   extended: true
 }))
@@ -145,6 +156,15 @@ async function encryptPassword(password: string): Promise<string>{
   const hash = await bcrypt.hash(password,salt);
   return hash
 }
+
+const getMaxVersionNumber = async (formId: string): Promise<number> => {
+  const result = await FormHistory.findOne({ form_id: formId })
+    .sort({ version: -1 })
+    .select("version")
+    .lean();
+
+  return result ? result.version! + 1 : 1;
+};
 
 app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside Form Post")
@@ -167,13 +187,35 @@ app.post('/api/form/',async (req: Request, res: Response, next: NextFunction) =>
 })
 
 
+app.post('/api/formHistory/',async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside FormHistory Post")
+  const {id,form_id, form_title, components, date_modified} = req.body
+  console.log(req.body)
+  if(!id || !form_id || !form_title || !components || !date_modified ){
+      const error = new Error('Data is Required') as CustomError
+      error.status = 400;
+      return next(error)
+  }
+
+  const nextVersionNumber = await getMaxVersionNumber(form_id);
+
+  const newFormHistory = new FormHistory({
+      id, form_id, form_title, components, date_modified,version: nextVersionNumber  
+  })
+
+  await newFormHistory.save()
+
+  res.status(201).send(newFormHistory)
+
+})
+
 app.get('/api/form/show/:id', async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside Get By Id Function");
   const {id} = req.params;
   console.log(id)
   Form.findOne({
     id: id,
-     "components.menuItems": { $exists: true, $ne: [] },
+    //  "components.menuItems": { $exists: true, $ne: [] },
     // "components.radioItems": { $exists: true, $ne: [] },
     // "components.tabItems": { $exists: true, $ne: [] },
     // "components.columnItems": { $exists: true, $ne: [] },
@@ -194,6 +236,27 @@ function (err: any, val: any) {
 })
 
 
+app.get('/api/formHistory/getByFormId/:formId', async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Inside Get By Id Function");
+  const {formId} = req.params;
+  console.log(formId)
+  FormHistory.find({
+    form_id: formId,
+},
+
+function (err: any, val: any) {
+  if (err) {
+    res.send("Error");
+  }
+    if (!val) {
+      console.log(val)
+      res.send("Data does not exist");
+    } 
+    else{
+      res.send(val);
+    }
+  })
+})
 
 app.get('/api/form/getFormName/:formName', async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside Get FormName Function");
@@ -281,6 +344,8 @@ app.put('/api/form/update/:id',async (req: Request, res: Response, next: NextFun
   }
   res.status(200).send(updatedForm)
 })
+
+
 
 app.delete('/api/form/delete/:id', async (req: Request, res: Response, next: NextFunction) => {
   console.log("Inside Form Delete Function");

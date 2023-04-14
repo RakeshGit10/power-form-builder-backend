@@ -110,6 +110,15 @@ const formSchema = new mongoose_1.default.Schema({
     status: String
 });
 const Form = mongoose_1.default.model('Form', formSchema);
+const formHistorySchema = new mongoose_1.default.Schema({
+    id: Number,
+    form_id: Number,
+    version: Number,
+    form_title: String,
+    components: [componentSchema],
+    date_modified: String,
+});
+const FormHistory = mongoose_1.default.model('FormHistory', formHistorySchema);
 app.use((0, body_parser_1.urlencoded)({
     extended: true
 }));
@@ -119,6 +128,13 @@ async function encryptPassword(password) {
     const hash = await bcrypt_1.default.hash(password, salt);
     return hash;
 }
+const getMaxVersionNumber = async (formId) => {
+    const result = await FormHistory.findOne({ form_id: formId })
+        .sort({ version: -1 })
+        .select("version")
+        .lean();
+    return result ? result.version + 1 : 1;
+};
 app.post('/api/form/', async (req, res, next) => {
     console.log("Inside Form Post");
     const { id, form_title, owner, components, date_created, date_modified, status } = req.body;
@@ -133,16 +149,51 @@ app.post('/api/form/', async (req, res, next) => {
     await newForm.save();
     res.status(201).send(newForm);
 });
+app.post('/api/formHistory/', async (req, res, next) => {
+    console.log("Inside FormHistory Post");
+    const { id, form_id, form_title, components, date_modified } = req.body;
+    console.log(req.body);
+    if (!id || !form_id || !form_title || !components || !date_modified) {
+        const error = new Error('Data is Required');
+        error.status = 400;
+        return next(error);
+    }
+    const nextVersionNumber = await getMaxVersionNumber(form_id);
+    const newFormHistory = new FormHistory({
+        id, form_id, form_title, components, date_modified, version: nextVersionNumber
+    });
+    await newFormHistory.save();
+    res.status(201).send(newFormHistory);
+});
 app.get('/api/form/show/:id', async (req, res, next) => {
     console.log("Inside Get By Id Function");
     const { id } = req.params;
     console.log(id);
     Form.findOne({
         id: id,
-        "components.menuItems": { $exists: true, $ne: [] },
+        //  "components.menuItems": { $exists: true, $ne: [] },
         // "components.radioItems": { $exists: true, $ne: [] },
         // "components.tabItems": { $exists: true, $ne: [] },
         // "components.columnItems": { $exists: true, $ne: [] },
+    }, function (err, val) {
+        if (err) {
+            res.send("Error");
+        }
+        if (!val) {
+            console.log(val);
+            res.send("Data does not exist");
+        }
+        else {
+            res.send(val);
+        }
+    });
+});
+app.get('/api/formHistory/getByFormId/:formId', async (req, res, next) => {
+    console.log("Inside Get By Id Function");
+    const { formId } = req.params;
+    console.log(formId);
+    FormHistory.find({
+        form_id: formId,
     }, function (err, val) {
         if (err) {
             res.send("Error");
