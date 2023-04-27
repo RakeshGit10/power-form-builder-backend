@@ -1,14 +1,20 @@
-import express, {Request,Response, NextFunction} from "express";
+import express, {Request,Response, NextFunction, Express} from "express";
 import {json, urlencoded} from "body-parser";
 import mongoose, { ConnectOptions } from "mongoose";
 import cors from "cors";
 import bcrypt from 'bcrypt'
+import multer, { Multer } from "multer";
+import {GridFsStorage} from 'multer-gridfs-storage';
+import { Readable } from 'stream';
+const mime = require('mime-types');
+
 
 const app = express();
 app.use(cors());
+// const upload = multer({ dest: "uploads/" });
 
 mongoose.connect(
-  "mongodb://localhost:27017/newformbuilder",
+  "mongodb://localhost:27017/finalBuilder",
   {
     autoIndex: true,
     useNewUrlParser: true,
@@ -23,7 +29,20 @@ mongoose.connect(
   }
 );
 
-//
+type MulterRequest = express.Request & { file: Express.Multer.File };
+
+  const storage = new GridFsStorage({
+    url: 'mongodb://localhost:27017/finalBuilder',
+    file: (req: any, file: any) => {
+      return {
+        bucketName: 'uploads',
+        filename: file.originalname
+      }
+    }
+  })
+
+  const upload = multer({ storage });
+
 const userSchema = new mongoose.Schema({
   userId: {type: Number, required: true, unique: true},
   email: { type: String, required: true, unique:true },
@@ -54,6 +73,8 @@ const menuItemSchema = new mongoose.Schema({
     maxLength: { type: Number, required: false },
     rows: { type: Number, required: false },
     error: { type: String, required: false },
+    minDate: {type: Date, required: false, default: undefined },
+    maxDate: {type: Date, required: false, default: undefined },
   })
   
 const elementSchema = new mongoose.Schema({
@@ -74,6 +95,11 @@ const elementSchema = new mongoose.Schema({
     size: String,
     options: String,
     radioItems: [radioButtonSchema],
+
+    format: String,
+    disablePast: Boolean,
+    disableFuture: Boolean,
+    
     show: Boolean
 })
 
@@ -138,6 +164,44 @@ const formHistorySchema = new mongoose.Schema({
 })
 
 const FormHistory = mongoose.model('FormHistory', formHistorySchema)
+
+// Route for file upload
+app.post('/api/upload', upload.single('file'), (req, res) => {
+  res.json({ file: req.file });
+});
+
+//To Download File
+app.get('/download/:filename', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+
+    const file = await db.collection('uploads.files').findOne({ filename: req.params.filename });
+    if (!file) {
+      return res.status(404).send('File not found');
+    }
+
+    const chunks = await db.collection('uploads.chunks').find({ files_id: file._id }).toArray();
+    const data = chunks.reduce((acc: any, chunk: any) => {
+      acc.push(chunk.data.buffer);
+      return acc;
+    }, []);
+    const fileData = Buffer.concat(data);
+
+    const contentType = mime.contentType(file.contentType);
+    const filename = file.filename;
+    res.set('Content-Type', contentType);
+    res.set('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const readable = new Readable();
+    readable._read = () => {};
+    readable.push(fileData);
+    readable.push(null);
+    readable.pipe(res);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send('Internal server error');
+  } 
+});
 
 app.use(urlencoded({
   extended: true
